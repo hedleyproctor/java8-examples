@@ -1,5 +1,7 @@
 package com.example.java8;
 
+import com.example.java8.collect.ClaimProductTypeCollector;
+
 import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -8,6 +10,9 @@ import java.util.stream.Stream;
 import static java.util.stream.Collectors.*;
 
 public class StreamExamples {
+
+    private static Set<Claim> claims;
+    private static Set<Dish> menu;
 
     private Set<Claim> createClaimData() {
         Set<Claim> claims = new HashSet<>();
@@ -20,7 +25,6 @@ public class StreamExamples {
 
         return claims;
     }
-
 
     private Set<Dish> createMenuData() {
         Set<Dish> menu = new HashSet<>();
@@ -35,22 +39,24 @@ public class StreamExamples {
 
     public static void main(String[] args) {
         StreamExamples streamExamples = new StreamExamples();
-        streamExamples.streamExamples();
+        claims = streamExamples.createClaimData();
+        menu = streamExamples.createMenuData();
+        streamExamples.collect();
     }
 
-    public void streamExamples() {
-        Set<Claim> claims = createClaimData();
-        Set<Dish> menu = createMenuData();
-
-
-        // 1. filter - intermediate operation - returns a stream
+    /** filter - intermediate operation - returns a stream
+      */
+    public void filter() {
         // motor claims only
         Stream<Claim> motorClaims = claims.stream().filter(claim -> claim.getProductType().equals(Claim.PRODUCT_TYPE.MOTOR));
         // payments > 1000
         Stream<Claim> paymentsOver1000 = claims.stream().filter(claim -> claim.getTotalPayments() > 1000);
         // Example: claims with two or more jobs?
+        Stream<Claim> twoOrMore = claims.stream().filter(claim -> claim.getJobs().size() >= 2);
+    }
 
-        // 2. map - intermediate operation - maps stream to different type
+    public void map() {
+        // map - intermediate operation - maps stream to different type
         Stream<Long> claimIds = claims.stream().map(claim -> claim.getId());
         // can write this using a method reference
         Stream<Long> claimIds2 = claims.stream().map(Claim::getId);
@@ -59,15 +65,21 @@ public class StreamExamples {
                 .filter(claim -> claim.getProductType().equals(Claim.PRODUCT_TYPE.MOTOR))
                 .map(Claim::getId);
         // create new objects
-        Stream<ClaimDTO> claimDTOs = claims.stream().map(claim -> new ClaimDTO(claim.getId(),claim.getTotalPayments()));
+        Stream<ClaimDTO> claimDTOs = claims.stream().map(claim -> new ClaimDTO(claim.getId(), claim.getTotalPayments()));
         // Example: Names of all dishes with more than 720 calories?
+        Stream<String> dishNames = menu.stream().filter(dish -> dish.getCalories() > 720).map(Dish::getName);
+    }
 
-        // 3. flatmap - collapses a stream of collections into individual objects
+    public void flatmap() {
+        // flatmap - collapses a stream of collections into individual objects
         // get all jobs from all claims
         Stream<Job> jobs = claims.stream().map(Claim::getJobs).flatMap(Set::stream);
         // Example: side orders for dishes over 750 calories?
+        Stream<SideOrder> sideOrdersOver750 = menu.stream().filter(dish -> dish.getCalories() > 750).map(Dish::getSideOrders).flatMap(Set::stream);
+    }
 
-        // 4. collect - terminal operation - collect your results into a collection or single result
+    public void collect() {
+        // collect - terminal operation - collect your results into a collection or single result
         // to a set
         Set<Claim> motorClaimSet = claims.stream().
                                     filter(claim -> claim.getProductType().equals(Claim.PRODUCT_TYPE.MOTOR)).
@@ -81,6 +93,7 @@ public class StreamExamples {
                                         filter(claim -> claim.getProductType().equals(Claim.PRODUCT_TYPE.MOTOR)).
                                         collect(Collectors.toMap(Claim::getId, Function.<Claim>identity()));
         // Example: Map<String,Integer> of dish names and calories (for main dish)
+        Map<String,Integer> dishNameAndCalories = menu.stream().collect(Collectors.toMap(Dish::getName, Dish::getCalories));
 
         // group by non-unique key
         Map<Claim.PRODUCT_TYPE,List<Claim>> claimsByType = claims.stream().collect(groupingBy(Claim::getProductType));
@@ -101,27 +114,25 @@ public class StreamExamples {
         Map<SideOrder.Type,List<Integer>> sideOrderCalories = menu.stream().map(Dish::getSideOrders).flatMap(Set::stream)
                 .collect(groupingBy(SideOrder::getType, mapping(SideOrder::getCalories, toList())));
 
+        // partitioning - divide stream into two groups
+        Map<Boolean,List<Dish>> veggieAndNonVeggie = menu.stream().collect(partitioningBy(Dish::isVegetarian));
 
         // summing
         double totalCalories = menu.stream().collect(summingDouble(Dish::getCalories));
         double totalPayments = claims.stream().collect(summingDouble(Claim::getTotalPayments));
+        // average
+        double averagePayment = claims.stream().collect(averagingDouble(Claim::getTotalPayments));
 
-        // most expensive claim
-        Optional<Claim> optionalClaim = claims.stream().max(Comparator.comparingDouble(Claim::getTotalPayments));
+        // if you want multiple sums etc, better off using a summing collector, so you don't have to iterate the stream
+        // multiple times:
+        DoubleSummaryStatistics paymentStats = claims.stream().collect(summarizingDouble(Claim::getTotalPayments));
+        totalPayments = paymentStats.getSum();
+        averagePayment = paymentStats.getAverage();
 
+        // joining
+        String claimIdListAsCommaSeparatedString = claims.stream().map(claim -> claim.getId().toString()).collect(joining(","));
 
-        // http://stackoverflow.com/questions/22577197/java-8-streams-collect-vs-reduce
-
-
-
-        Map<Claim.PRODUCT_TYPE,List<Claim>> claimsByTypeOrderedByPaymentTotals = claims.stream().collect(groupingBy(Claim::getProductType));
-
-        // consider claims of different types, each with one or more jobs, of different types, such as loss adjuster, motor repair, solicitor etc.
-        // How do you find the distinct set of jobs that are displayed by a collection of claims?
-        // or how do you find if all jobs / or jobs you specify are displayed by that collection
-        Set<Job.Type> jobTypes = claims.stream().map(claim -> claim.getJobs()).flatMap(Set::stream).map(job -> job.getType()).collect(Collectors.toSet());
-
-        // return one claim for each product type e.g. motor and household
+        // custom collector: return one claim for each product type e.g. motor and household
         ClaimProductTypeCollector<Claim> claimProductTypeCollector = new ClaimProductTypeCollector();
         claimProductTypeCollector.getRequiredTypes().add(Claim.PRODUCT_TYPE.MOTOR);
         claimProductTypeCollector.getRequiredTypes().add(Claim.PRODUCT_TYPE.HOUSEHOLD);
@@ -134,6 +145,8 @@ public class StreamExamples {
         // get total spend on motor claims
 
         // get first motor claim
+
+        // http://stackoverflow.com/questions/22577197/java-8-streams-collect-vs-reduce
 
         System.out.println("Done");
     }

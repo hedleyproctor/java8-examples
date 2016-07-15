@@ -2,15 +2,13 @@ package com.example.java8.forkjoin;
 
 import org.testng.annotations.Test;
 
-import java.util.stream.LongStream;
-
 import static org.testng.Assert.assertTrue;
 
 public class QuickSortTest {
 
     @Test
     public void quickSortTest() {
-        long[] input = LongStream.rangeClosed(1, 10000).toArray();
+        long[] input = new long[10_000];
         for (int i=0; i<input.length; i++) {
             input[i] = Math.round(Math.random()*1000);
         }

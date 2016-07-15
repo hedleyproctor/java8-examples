@@ -13,6 +13,10 @@ public class Claim {
     private double totalPayments;
     private Set<Job> jobs = new HashSet<>();
 
+    public Claim() {
+
+    }
+
     public Claim(long id, PRODUCT_TYPE productType, double totalPayments, Job... jobs) {
         this.id = id;
         this.productType = productType;
