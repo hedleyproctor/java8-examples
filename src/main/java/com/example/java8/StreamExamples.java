@@ -41,7 +41,7 @@ public class StreamExamples {
         StreamExamples streamExamples = new StreamExamples();
         claims = streamExamples.createClaimData();
         menu = streamExamples.createMenuData();
-        streamExamples.collect();
+        streamExamples.reduce();
     }
 
     /** filter - intermediate operation - returns a stream
@@ -118,7 +118,7 @@ public class StreamExamples {
         Map<Boolean,List<Dish>> veggieAndNonVeggie = menu.stream().collect(partitioningBy(Dish::isVegetarian));
 
         // summing
-        double totalCalories = menu.stream().collect(summingDouble(Dish::getCalories));
+        int totalCalories = menu.stream().collect(summingInt(Dish::getCalories));
         double totalPayments = claims.stream().collect(summingDouble(Claim::getTotalPayments));
         // average
         double averagePayment = claims.stream().collect(averagingDouble(Claim::getTotalPayments));
@@ -137,17 +137,23 @@ public class StreamExamples {
         claimProductTypeCollector.getRequiredTypes().add(Claim.PRODUCT_TYPE.MOTOR);
         claimProductTypeCollector.getRequiredTypes().add(Claim.PRODUCT_TYPE.HOUSEHOLD);
         Map oneClaimPerProductType = claims.stream().collect(claimProductTypeCollector);
-
-
-
-        // get total spend across all claims
-
-        // get total spend on motor claims
-
-        // get first motor claim
-
-        // http://stackoverflow.com/questions/22577197/java-8-streams-collect-vs-reduce
-
-        System.out.println("Done");
     }
+
+    /** reduce is a "functional" reduction. i.e. not using a mutable container
+     *
+     */
+    public void reduce() {
+        int totalCalories = menu.stream().map(Dish::getCalories).reduce(0,(calories1,calories2) -> calories1 + calories2);
+        // note that the two argument reduce method reduces a stream to a single value of the same type as the stream.
+        // Hence whenever you want a result of a different type to your current stream, you must map first.
+        // This is the "map-reduce" pattern made famous by Google.
+
+        // also have a single parameter version of the method:
+        Optional<Integer> totalCalories2 = menu.stream().map(Dish::getCalories).reduce((calories1,calories2) -> calories1 + calories2);
+
+        // finally there is a three argument method that combines both the map and reduce operations.
+        // Note how similar it looks to a collect:
+        int totalCalories3 = menu.stream().reduce(0,(calories,dish) -> calories + dish.getCalories(), null);
+    }
+
 }
