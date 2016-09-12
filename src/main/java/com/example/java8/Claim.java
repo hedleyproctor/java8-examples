@@ -17,6 +17,10 @@ public class Claim {
 
     }
 
+    public Claim(Long id) {
+        this.id = id;
+    }
+
     public Claim(long id, PRODUCT_TYPE productType, double totalPayments, Job... jobs) {
         this.id = id;
         this.productType = productType;

@@ -8,8 +8,6 @@ import java.util.List;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static java.util.stream.Collectors.toList;
-
 public class UniqueCollectorTest {
 
     @Test
@@ -35,7 +33,7 @@ public class UniqueCollectorTest {
     private void evaluate(Stream<Claim> claimStream) {
         long startTime = System.currentTimeMillis();
         // replace the call toList() with your collector...
-        List<Claim> uniqueClaims = claimStream.collect(toList());
+        List<Claim> uniqueClaims = claimStream.collect(new ConcurrentUniqueCollector<>());
         long endTime = System.currentTimeMillis();
         long time = endTime - startTime;
         System.out.println("Got unique list. Size: " + uniqueClaims.size());

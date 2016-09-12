@@ -111,8 +111,10 @@ public class StreamExamples {
                                                     })
         ));
         // side orders, grouped by type, with a list of the calories for each type
-        Map<SideOrder.Type,List<Integer>> sideOrderCalories = menu.stream().map(Dish::getSideOrders).flatMap(Set::stream)
-                .collect(groupingBy(SideOrder::getType, mapping(SideOrder::getCalories, toList())));
+        Map<SideOrder.Type,List<Integer>> sideOrderCalories = menu.stream()
+                                                                .map(Dish::getSideOrders)
+                                                                .flatMap(Set::stream)
+                                                                .collect(groupingBy(SideOrder::getType, mapping(SideOrder::getCalories, toList())));
 
         // partitioning - divide stream into two groups
         Map<Boolean,List<Dish>> veggieAndNonVeggie = menu.stream().collect(partitioningBy(Dish::isVegetarian));
@@ -153,7 +155,98 @@ public class StreamExamples {
 
         // finally there is a three argument method that combines both the map and reduce operations.
         // Note how similar it looks to a collect:
-        int totalCalories3 = menu.stream().reduce(0,(calories,dish) -> calories + dish.getCalories(), null);
+        int totalCalories3 = menu.stream().reduce(0,(calories,dish) -> calories + dish.getCalories(), (cal1,cal2) -> cal1 + cal2);
+    }
+
+    public void optional() {
+        // "The introduction of null references was my billion dollar mistake" - Tony Hoare
+
+        // Optional is a (typed) container object. It may contain a single object, or it may be empty.
+        // It allows you to avoid null pointer exceptions.
+
+        ClaimService claimService = new ClaimService();
+        // the signature of the ClaimService method tells us it might not return a result
+        Optional<Claim> optionalClaim = claimService.findById(15l);
+
+        // "functional" way to interact with an Optional is not to directly unbox it, but rather to invoke one of the
+        // functional methods. e.g.
+        optionalClaim.ifPresent(claim -> System.out.println("Found claim. Id: " + claim.getId()));
+
+        // can chain a call to map on the optional without worrying about whether the optional is empty
+        Optional<Claim.PRODUCT_TYPE> optionalProductType = claimService.findById(15l).map(Claim::getProductType);
+
+        // can specify a default return value if not present
+        Claim.PRODUCT_TYPE myProductType =
+                claimService.findById(15l)
+                .map(Claim::getProductType)
+                .orElse(Claim.PRODUCT_TYPE.MOTOR);
+
+        // can even call a supplier function to return the default value if needed
+        Claim.PRODUCT_TYPE myProductType2 =
+                claimService.findById(15l)
+                .map(Claim::getProductType)
+                .orElseGet(claimService::getDefaultProductType);
+
+        // if you need to invoke a method that already returns an optional, invoke it with flatMap, which will avoid having one optional inside another.
+        // i.e. if the content of your optional is non-null, flatMap invokes the supplied function on it, but then doesn't wrap the return value in a second Optional
+        Optional<AuditLog> auditLogOptional = claimService.findById(15l).flatMap(claimService::findAuditLog);
+
+        // Optional also has a filter method
+        Optional<Claim> optionalMotorClaim = claimService.findById(15l).filter(claim -> Claim.PRODUCT_TYPE.MOTOR.equals(claim.getProductType()));
+
+        // if you really need to get the value...
+        if (optionalClaim.isPresent()) {
+            Claim myClaim = optionalClaim.get();
+            // do stuff with claim
+        }
+
+        // In Java 8, it is difficult to unwrap a stream of optionals, you have to to invoke both filter and map:
+        Set<Long> claimIdSet = new HashSet<>();
+        claimIdSet.add(1001l);
+        claimIdSet.add(2576l);
+        claimIdSet.add(8563l);
+
+        Stream<Claim> claimsLoadedById = claimIdSet.stream()
+                                                .map(claimService::findById)
+                                                .filter(Optional::isPresent)
+                                                .map(Optional::get);
+
+        // In Java 9, you can do this using flatMap on the stream:
+        //
+        // http://stackoverflow.com/questions/22725537/using-java-8s-optional-with-streamflatmap
+        //
+        //         Stream<Claim> claimsLoadedById = claimIdSet.stream()
+        //                              .map(claimService::findById)
+        //                              .flatMap(Optional::stream)
+    }
+
+    public void miscellaneousExamples() {
+        // often want to find the first / a single object matching a predicate
+        Optional<Claim> motorClaim = claims.stream()
+                .filter(claim -> claim.getProductType().equals(Claim.PRODUCT_TYPE.MOTOR))
+                .findFirst();
+
+        // if you don't care which one, use findAny.
+        // for a parallel stream, it will return as soon as any parallel processing has found a result
+        Optional<Claim> motorClaim2 = claims.parallelStream()
+                .filter(claim -> claim.getProductType().equals(Claim.PRODUCT_TYPE.MOTOR))
+                .findAny();
+
+        // checking for any / all match
+        boolean isEveryClaimMotor = claims.stream()
+                .allMatch(claim -> claim.getProductType().equals(Claim.PRODUCT_TYPE.MOTOR));
+
+        boolean anyClaimMotor = claims.stream()
+                .anyMatch(claim -> claim.getProductType().equals(Claim.PRODUCT_TYPE.MOTOR));
+
+        // pick out distinct elements, using equals()
+        Set<Claim> distinctClaims = claims.stream().distinct().collect(toSet());
+
+        // sort according to "natural" order, using a comparator
+        List<Claim> orderedClaims = claims.stream().sorted().collect(toList());
+
+        claims.stream().forEach(claim -> System.out.println("Claim (id=" + claim.getId() + ")"));
+
     }
 
 }
