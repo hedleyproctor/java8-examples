@@ -49,6 +49,11 @@ public class CharacterStreamSpliterator implements Spliterator<Character> {
                 splitPosition++;
             }
         }
+        if (Character.isDigit(string.charAt(splitPosition))) {
+            while (Character.isDigit(string.charAt(splitPosition))) {
+                splitPosition++;
+            }
+        }
 
         // create a new spliterator for the first half of the string
         CharacterStreamSpliterator spliterator = new CharacterStreamSpliterator(string.substring(currentChar,splitPosition));

@@ -5,6 +5,10 @@ import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.StreamSupport;
+
+import static org.testng.Assert.assertEquals;
 
 public class PaymentSpliteratorTest {
 
@@ -14,11 +18,21 @@ public class PaymentSpliteratorTest {
         List<Payment> payments = createSampleData();
 
         // this one won't work in parallel
-        Map<String,Double> averageTotalsPerBatchAndCategory = payments.stream().collect(new PaymentBatchTotaller());
+        //Map<String,Double> averageTotalsPerBatchAndCategory = payments.stream().collect(new PaymentBatchTotaller());
 
+        Map<String,Double> averageTotalsPerBatchAndCategory =
+                StreamSupport.stream(new PaymentBatchSpliterator(payments),true).collect(new PaymentBatchTotaller());
 
+        Set<Map.Entry<String,Double>> entrySet = averageTotalsPerBatchAndCategory.entrySet();
+        assertEquals(entrySet.size(),3);
         for (Map.Entry<String,Double> total : averageTotalsPerBatchAndCategory.entrySet()) {
-            System.out.println("Category: " + total.getKey() + " Average batch total: " + total.getValue());
+            if (total.getKey().equals("A")) {
+                assertEquals(60d,total.getValue());
+            } else if (total.getKey().equals("B")) {
+                assertEquals(200d,total.getValue());
+            } else {
+                assertEquals(80d,total.getValue());
+            }
         }
 
     }
